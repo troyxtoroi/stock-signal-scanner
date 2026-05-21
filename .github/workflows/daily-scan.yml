@@ -2,9 +2,11 @@ name: 每日股票信號掃描
 
 on:
   schedule:
-    # 台灣收盤後 15:30，UTC 時間 07:30
     - cron: "30 7 * * 1-5"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   scan:
@@ -23,7 +25,12 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: 執行掃描器
-        env:
-          PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
-          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
         run: python scanner.py
+
+      - name: 提交掃描結果到 GitHub Pages
+        run: |
+          git config user.name  "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          git add docs/results.json
+          git diff --staged --quiet || git commit -m "掃描結果更新 $(date '+%Y/%m/%d %H:%M' -d '+8 hours')"
+          git push
