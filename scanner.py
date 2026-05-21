@@ -398,6 +398,8 @@ def main():
             else:
                 print(f"→ 現價 {price}（{change_pct:+.2f}%）")
 
+            prices_20d = [round(float(v), 2) for v in df["Close"].iloc[-20:].tolist()]
+
             stock_info = {
                 "ticker":     ticker,
                 "is_etf":     is_etf,
@@ -406,6 +408,7 @@ def main():
                 "change_pct": change_pct,
                 "signals":    signals,
                 "ai":         ai,
+                "prices_20d": prices_20d,
             }
             results["all_stocks"].append(stock_info)
         except Exception as e:
