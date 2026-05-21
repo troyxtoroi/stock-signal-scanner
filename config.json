@@ -1,23 +1,32 @@
 {
   "ntfy_topic": "stock-signals-troychao",
+
   "watchlist": [
-    "2330.TW",
-    "2317.TW",
-    "2454.TW",
-    "2412.TW",
-    "2881.TW",
-    "0050.TW",
-    "0056.TW"
+    "2330.TW", "2317.TW", "2454.TW", "2412.TW",
+    "2881.TW", "2882.TW", "2886.TW", "2891.TW",
+    "2308.TW", "2382.TW", "2303.TW", "3008.TW",
+    "2002.TW", "1301.TW", "2891.TW", "2912.TW"
   ],
+
+  "etf_watchlist": [
+    "0050.TW", "0056.TW", "00878.TW", "00940.TW"
+  ],
+
   "signals": {
     "golden_cross": true,
+    "macd_crossover": true,
+    "bollinger_bounce": true,
     "volume_spike": true,
     "rsi_oversold": true,
-    "high_dividend": true
+    "high_dividend": true,
+    "etf_arbitrage": true
   },
+
   "thresholds": {
     "rsi_oversold_level": 30,
     "volume_spike_ratio": 2.0,
-    "min_dividend_yield": 5.0
+    "min_dividend_yield": 5.0,
+    "bollinger_pband_entry": 0.1,
+    "etf_discount_threshold": -1.5
   }
 }
