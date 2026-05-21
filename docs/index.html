@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>📈 台股信號通知訂閱</title>
+  <style>
+    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; padding: 20px; background: #f5f5f5; }
+    .card { background: white; border-radius: 12px; padding: 24px; margin: 16px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    h1 { color: #1a1a2e; }
+    button { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%; margin: 8px 0; }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #9ca3af; cursor: not-allowed; }
+    .step { border-left: 4px solid #2563eb; padding-left: 16px; margin: 16px 0; }
+    textarea { width: 100%; height: 120px; font-family: monospace; font-size: 12px; padding: 8px; border: 1px solid #e5e7eb; border-radius: 6px; box-sizing: border-box; }
+    .success { color: #16a34a; font-weight: bold; }
+    .label { font-size: 13px; color: #6b7280; margin-bottom: 4px; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+    #status { padding: 12px; border-radius: 8px; margin: 8px 0; }
+    .info { background: #eff6ff; color: #1d4ed8; }
+    .ok { background: #f0fdf4; color: #16a34a; }
+    .err { background: #fef2f2; color: #dc2626; }
+    input { width: 100%; padding: 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 14px; box-sizing: border-box; margin: 4px 0 12px; }
+  </style>
+</head>
+<body>
+  <h1>📈 台股信號通知訂閱</h1>
+  <p>完成以下步驟後，Chrome 就會在背景自動跳出股票信號通知。</p>
+
+  <div class="card">
+    <div class="step">
+      <b>第一步：貼入你的 VAPID 公鑰</b>
+      <p class="label">從 GitHub Secrets → VAPID_PUBLIC_KEY 複製貼到這裡</p>
+      <input type="text" id="vapidKey" placeholder="貼入 VAPID_PUBLIC_KEY 的值...">
+    </div>
+
+    <div class="step">
+      <b>第二步：訂閱 Chrome 背景通知</b>
+    </div>
+
+    <button id="subscribeBtn" onclick="subscribe()">🔔 訂閱 Chrome 背景通知</button>
+    <div id="status" class="info" style="display:none"></div>
+  </div>
+
+  <div class="card" id="resultCard" style="display:none">
+    <b class="success">✅ 訂閱成功！</b>
+    <p>把以下內容複製，存到 GitHub Secret，名稱為 <code>PUSH_SUBSCRIPTION</code></p>
+    <div class="label">PUSH_SUBSCRIPTION 的值：</div>
+    <textarea id="subOutput" readonly onclick="this.select()"></textarea>
+    <p style="color:#6b7280; font-size:13px">點選文字框後 Ctrl+A 全選，再 Ctrl+C 複製</p>
+  </div>
+
+  <div class="card">
+    <b>📌 操作說明</b>
+    <ol style="color:#374151; font-size:14px; line-height:1.8">
+      <li>到 GitHub → 你的 repo → Settings → Secrets and variables → Actions</li>
+      <li>新增 Secret <code>VAPID_PUBLIC_KEY</code>（從產生金鑰的 Actions 日誌複製）</li>
+      <li>新增 Secret <code>VAPID_PRIVATE_KEY</code>（同上）</li>
+      <li>完成本頁訂閱後，再新增 Secret <code>PUSH_SUBSCRIPTION</code></li>
+    </ol>
+  </div>
+
+  <script>
+    function urlBase64ToUint8Array(base64String) {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = atob(base64);
+      return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
+    }
+
+    function showStatus(msg, type) {
+      const el = document.getElementById('status');
+      el.textContent = msg;
+      el.className = type;
+      el.style.display = 'block';
+    }
+
+    async function subscribe() {
+      const vapidKey = document.getElementById('vapidKey').value.trim();
+      if (!vapidKey) {
+        showStatus('請先貼入 VAPID_PUBLIC_KEY！', 'err');
+        return;
+      }
+
+      const btn = document.getElementById('subscribeBtn');
+      btn.disabled = true;
+      showStatus('正在設定...', 'info');
+
+      try {
+        const reg = await navigator.serviceWorker.register('sw.js');
+        await navigator.serviceWorker.ready;
+
+        const existing = await reg.pushManager.getSubscription();
+        if (existing) await existing.unsubscribe();
+
+        const subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey)
+        });
+
+        const json = JSON.stringify(subscription.toJSON());
+        document.getElementById('subOutput').value = json;
+        document.getElementById('resultCard').style.display = 'block';
+        showStatus('✅ 訂閱成功！Chrome 現在會在背景收到股票信號通知。', 'ok');
+      } catch (err) {
+        showStatus('❌ 訂閱失敗：' + err.message, 'err');
+        btn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>

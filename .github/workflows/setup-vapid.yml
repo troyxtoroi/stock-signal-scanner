@@ -1,0 +1,50 @@
+name: 產生 VAPID 金鑰（只需執行一次）
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate-keys:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 安裝 cryptography
+        run: pip install cryptography
+
+      - name: 產生 VAPID 金鑰組
+        run: |
+          python3 - <<'EOF'
+          from cryptography.hazmat.primitives.asymmetric import ec
+          from cryptography.hazmat.backends import default_backend
+          from cryptography.hazmat.primitives import serialization
+          import base64
+
+          private_key = ec.generate_private_key(ec.SECP256R1(), default_backend())
+          public_key = private_key.public_key()
+
+          private_pem = private_key.private_bytes(
+              serialization.Encoding.PEM,
+              serialization.PrivateFormat.TraditionalOpenSSL,
+              serialization.NoEncryption()
+          ).decode()
+
+          pub_bytes = public_key.public_bytes(
+              serialization.Encoding.X962,
+              serialization.PublicFormat.UncompressedPoint
+          )
+          pub_b64 = base64.urlsafe_b64encode(pub_bytes).rstrip(b'=').decode()
+
+          print("=" * 60)
+          print("請把以下兩組值分別存到 GitHub Secrets")
+          print("=" * 60)
+          print()
+          print("【Secret 名稱】VAPID_PUBLIC_KEY")
+          print("【值】")
+          print(pub_b64)
+          print()
+          print("【Secret 名稱】VAPID_PRIVATE_KEY")
+          print("【值】")
+          print(private_pem)
+          print("=" * 60)
+          print()
+          print("金鑰產生完成！請複製以上內容到 GitHub Secrets。")
+          EOF

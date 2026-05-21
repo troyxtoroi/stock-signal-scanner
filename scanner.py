@@ -1,10 +1,12 @@
 import json
+import os
 import requests
 import yfinance as yf
 import pandas as pd
 from ta.momentum import RSIIndicator
 from ta.trend import SMAIndicator
 from datetime import datetime, timedelta
+from pywebpush import webpush, WebPushException
 
 
 def load_config():
@@ -25,7 +27,27 @@ def send_notification(topic: str, title: str, message: str, priority: str = "def
             timeout=10,
         )
     except Exception as e:
-        print(f"推播失敗: {e}")
+        print(f"ntfy 推播失敗: {e}")
+
+
+def send_web_push(title: str, body: str):
+    subscription_json = os.environ.get("PUSH_SUBSCRIPTION", "")
+    vapid_private_key = os.environ.get("VAPID_PRIVATE_KEY", "")
+
+    if not subscription_json or not vapid_private_key:
+        return
+
+    try:
+        subscription_info = json.loads(subscription_json)
+        webpush(
+            subscription_info=subscription_info,
+            data=json.dumps({"title": title, "body": body}),
+            vapid_private_key=vapid_private_key,
+            vapid_claims={"sub": "mailto:coolzoro58@gmail.com"},
+        )
+        print(f"  Chrome 推播成功：{title}")
+    except WebPushException as e:
+        print(f"  Chrome 推播失敗: {e}")
 
 
 def fetch_stock_data(ticker: str, days: int = 60) -> pd.DataFrame:
@@ -116,19 +138,16 @@ def main():
     if opportunities:
         for ticker, signals in opportunities:
             signal_text = "\n".join(f"• {s}" for s in signals)
-            send_notification(
-                topic=topic,
-                title=f"📈 {ticker} 出現買入信號！",
-                message=f"日期：{today}\n股票：{ticker}\n\n{signal_text}",
-                priority="high",
-            )
+            title = f"📈 {ticker} 出現買入信號！"
+            message = f"日期：{today}\n股票：{ticker}\n\n{signal_text}"
+            send_notification(topic=topic, title=title, message=message, priority="high")
+            send_web_push(title=title, body=f"{ticker}：{signal_text}")
             print(f"  ✓ 已推播：{ticker} - {signals}")
     else:
-        send_notification(
-            topic=topic,
-            title=f"📊 每日掃描完成 ({today})",
-            message=f"掃描了 {len(watchlist)} 支股票，今日無明顯信號。",
-        )
+        title = f"📊 每日掃描完成 ({today})"
+        message = f"掃描了 {len(watchlist)} 支股票，今日無明顯信號。"
+        send_notification(topic=topic, title=title, message=message)
+        send_web_push(title=title, body=message)
         print("今日無明顯信號。")
 
     print("掃描完成！")
