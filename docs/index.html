@@ -165,6 +165,73 @@
 
     .loading { text-align:center; padding:80px; color:var(--muted); font-size:1rem; }
     footer { text-align:center; color:var(--muted); font-size:.72rem; padding:28px; border-top:1px solid var(--border); margin-top:20px; }
+
+    /* ── 管理按鈕 ── */
+    .btn-manage {
+      background: var(--card); color: var(--text);
+      border: 1px solid var(--border); padding: 7px 16px; border-radius: 6px;
+      font-size: .82rem; font-weight: 600; cursor: pointer;
+    }
+    .btn-manage:hover { border-color: var(--blue); color: var(--blue); }
+
+    /* ── Modal 遮罩 ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.7); z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; padding: 28px; width: 520px; max-width: 95vw;
+      max-height: 85vh; overflow-y: auto;
+    }
+    .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+    .modal-close { background: none; border: none; color: var(--muted); font-size: 1.4rem; cursor: pointer; line-height:1; }
+    .modal-close:hover { color: var(--text); }
+
+    .modal-section { margin-bottom: 20px; }
+    .modal-label { color: var(--muted); font-size: .75rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+
+    .input-row { display: flex; gap: 8px; }
+    .input-row input {
+      flex: 1; background: var(--card); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; color: var(--text);
+      font-size: .88rem; outline: none;
+    }
+    .input-row input:focus { border-color: var(--blue); }
+    .input-row input::placeholder { color: var(--muted); }
+    .btn-add {
+      background: var(--green); color: #000;
+      border: none; border-radius: 8px; padding: 10px 18px;
+      font-size: .88rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+    }
+    .btn-add:hover { opacity: .88; }
+
+    .stock-tags { display: flex; flex-wrap: wrap; gap: 8px; min-height: 36px; }
+    .stock-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 5px 12px; font-size: .82rem;
+    }
+    .stock-tag.official { border-color: rgba(74,158,255,.4); color: var(--blue); }
+    .stock-tag.custom   { border-color: rgba(0,208,132,.4); color: var(--green); }
+    .tag-remove { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 1rem; line-height:1; padding: 0; }
+    .tag-remove:hover { color: var(--red); }
+
+    .pat-note { font-size: .76rem; color: var(--muted); line-height: 1.6; margin-top: 6px; }
+    .pat-note a { color: var(--blue); }
+
+    .btn-sync {
+      width: 100%; background: linear-gradient(135deg, var(--blue), #6c63ff);
+      color: #fff; border: none; border-radius: 8px; padding: 12px;
+      font-size: .9rem; font-weight: 700; cursor: pointer; margin-top: 4px;
+    }
+    .btn-sync:hover { opacity: .9; }
+    .btn-sync:disabled { opacity: .4; cursor: not-allowed; }
+    .sync-status { font-size: .8rem; margin-top: 8px; text-align: center; }
+    .sync-ok  { color: var(--green); }
+    .sync-err { color: var(--red); }
   </style>
 </head>
 <body>
@@ -172,15 +239,164 @@
   <div class="nav-logo">📈 <span>台股信號</span>儀表板</div>
   <div class="nav-meta" id="nav-time">載入中...</div>
   <div class="nav-right">
+    <button class="btn-manage" onclick="openModal()">⚙ 管理股票</button>
     <button class="btn-refresh" onclick="load()">↻ 重新整理</button>
   </div>
 </nav>
+
+<!-- 自選股管理 Modal -->
+<div class="modal-overlay" id="modal" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-title">
+      ⚙ 管理追蹤股票
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">新增股票代號</div>
+      <div class="input-row">
+        <input id="newTicker" placeholder="輸入代號，如 2330 或 00878" onkeydown="if(event.key==='Enter')addStock()">
+        <button class="btn-add" onclick="addStock()">＋ 新增</button>
+      </div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">目前追蹤清單</div>
+      <div class="stock-tags" id="stockTags">載入中...</div>
+    </div>
+
+    <div class="modal-section">
+      <div class="modal-label">同步到 GitHub（讓每日掃描包含新股票）</div>
+      <div class="input-row">
+        <input id="patInput" type="password" placeholder="貼上 GitHub PAT（ghp_...）" oninput="savePAT(this.value)">
+      </div>
+      <p class="pat-note">
+        需要 GitHub PAT 才能自動更新設定。<br>
+        取得方式：<a href="https://github.com/settings/tokens/new?scopes=repo&description=stock-scanner" target="_blank">github.com/settings/tokens</a>
+        → Generate new token → 勾選 <b>repo</b> → 複製貼上
+      </p>
+      <button class="btn-sync" id="syncBtn" onclick="syncToGitHub()">🔄 同步到 GitHub（下次掃描生效）</button>
+      <div class="sync-status" id="syncStatus"></div>
+    </div>
+  </div>
+</div>
 
 <main id="app">
   <div class="loading">⏳ 載入資料中...</div>
 </main>
 
 <script>
+// ═══════════════════════════════════════════════════════════════
+// 自選股管理
+// ═══════════════════════════════════════════════════════════════
+const REPO = "troyxtoroi/stock-signal-scanner";
+let officialList = [];
+
+function openModal()  { document.getElementById("modal").classList.add("open"); renderTags(); }
+function closeModal() { document.getElementById("modal").classList.remove("open"); }
+function closeModalOutside(e) { if (e.target.id === "modal") closeModal(); }
+
+function getCustom() { return JSON.parse(localStorage.getItem("customList") || "[]"); }
+function setCustom(arr) { localStorage.setItem("customList", JSON.stringify(arr)); }
+function savePAT(v) { localStorage.setItem("ghPAT", v); }
+function getPAT()  { return localStorage.getItem("ghPAT") || ""; }
+
+function addStock() {
+  const raw = document.getElementById("newTicker").value.trim().toUpperCase();
+  if (!raw) return;
+  const ticker = raw.includes(".TW") ? raw : raw + ".TW";
+  const custom = getCustom();
+  if (!officialList.includes(ticker) && !custom.includes(ticker)) {
+    setCustom([...custom, ticker]);
+    renderTags();
+  }
+  document.getElementById("newTicker").value = "";
+}
+
+function removeStock(ticker, isOfficial) {
+  if (isOfficial) {
+    if (!confirm(`確定要從追蹤清單移除 ${ticker}？（同步後才會生效）`)) return;
+    const custom = getCustom();
+    if (!custom.includes("REMOVE:" + ticker)) setCustom([...custom, "REMOVE:" + ticker]);
+  } else {
+    setCustom(getCustom().filter(t => t !== ticker));
+  }
+  renderTags();
+}
+
+function renderTags() {
+  const custom  = getCustom();
+  const removes = custom.filter(t => t.startsWith("REMOVE:")).map(t => t.slice(7));
+  const adds    = custom.filter(t => !t.startsWith("REMOVE:"));
+
+  const html = [
+    ...officialList
+      .filter(t => !removes.includes(t))
+      .map(t => `<span class="stock-tag official">${t.replace(".TW","")}<button class="tag-remove" onclick="removeStock('${t}',true)" title="移除">×</button></span>`),
+    ...adds
+      .map(t => `<span class="stock-tag custom">${t.replace(".TW","")} ✦<button class="tag-remove" onclick="removeStock('${t}',false)" title="取消新增">×</button></span>`),
+  ].join("") || `<span style="color:var(--muted);font-size:.82rem">尚未設定追蹤股票</span>`;
+
+  document.getElementById("stockTags").innerHTML = html;
+
+  const pat = getPAT();
+  if (pat) document.getElementById("patInput").value = pat;
+}
+
+function toBase64Unicode(str) {
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) => String.fromCharCode(parseInt(p1, 16))));
+}
+
+async function syncToGitHub() {
+  const pat = getPAT() || document.getElementById("patInput").value.trim();
+  if (!pat) { showSyncStatus("請先輸入 GitHub PAT", "err"); return; }
+  savePAT(pat);
+
+  const btn = document.getElementById("syncBtn");
+  btn.disabled = true;
+  showSyncStatus("同步中...", "");
+
+  try {
+    const headers = { "Authorization": `token ${pat}`, "Content-Type": "application/json" };
+
+    // 取得現有 config.json
+    const res  = await fetch(`https://api.github.com/repos/${REPO}/contents/config.json`, { headers });
+    if (!res.ok) throw new Error("無法讀取設定檔，請確認 PAT 有 repo 權限");
+    const file = await res.json();
+    const cfg  = JSON.parse(atob(file.content.replace(/\n/g, "")));
+
+    // 套用變更
+    const custom  = getCustom();
+    const removes = custom.filter(t => t.startsWith("REMOVE:")).map(t => t.slice(7));
+    const adds    = custom.filter(t => !t.startsWith("REMOVE:"));
+    let list = cfg.watchlist.filter(t => !removes.includes(t));
+    adds.forEach(t => { if (!list.includes(t)) list.push(t); });
+    cfg.watchlist = list;
+
+    // 寫回
+    const putRes = await fetch(`https://api.github.com/repos/${REPO}/contents/config.json`, {
+      method: "PUT", headers,
+      body: JSON.stringify({ message: "更新觀察清單（網頁同步）", content: toBase64Unicode(JSON.stringify(cfg, null, 2)), sha: file.sha })
+    });
+    if (!putRes.ok) throw new Error("寫入失敗：" + (await putRes.json()).message);
+
+    officialList = cfg.watchlist;
+    setCustom([]);
+    renderTags();
+    showSyncStatus("✅ 同步成功！下次掃描將自動包含新股票", "ok");
+  } catch (e) {
+    showSyncStatus("❌ " + e.message, "err");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function showSyncStatus(msg, type) {
+  const el = document.getElementById("syncStatus");
+  el.textContent = msg;
+  el.className = "sync-status " + (type === "ok" ? "sync-ok" : type === "err" ? "sync-err" : "");
+}
+
 // ── 走勢迷你圖 SVG ──────────────────────────────────────────
 function sparkline(prices, w=80, h=32) {
   if (!prices || prices.length < 2) return "";
@@ -328,6 +544,7 @@ function renderADR(data) {
 // ── 主渲染 ──────────────────────────────────────────────────
 function render(d) {
   const stocks     = d.all_stocks || [];
+  officialList     = stocks.map(s => s.ticker);  // 記錄官方清單供管理介面使用
   const signalN    = stocks.filter(s => s.signals?.length).length;
   const alertN     = (d.portfolio || []).filter(p => p.status !== "正常").length;
   const arbN       = (d.etf_arbitrage?.length || 0) + (d.adr_arbitrage?.length || 0);
