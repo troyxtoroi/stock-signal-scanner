@@ -44,9 +44,10 @@ def send_ntfy(topic: str, title: str, message: str, priority: str = "default"):
 
 
 def send_web_push(title: str, body: str):
-    sub_json = os.environ.get("PUSH_SUBSCRIPTION", "")
-    vapid_key = os.environ.get("VAPID_PRIVATE_KEY", "")
+    sub_json = os.environ.get("PUSH_SUBSCRIPTION", "").strip()
+    vapid_key = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
     if not sub_json or not vapid_key:
+        print("    Chrome 推播跳過：缺少 PUSH_SUBSCRIPTION 或 VAPID_PRIVATE_KEY")
         return
     try:
         webpush(
@@ -55,8 +56,9 @@ def send_web_push(title: str, body: str):
             vapid_private_key=vapid_key,
             vapid_claims={"sub": "mailto:coolzoro58@gmail.com"},
         )
-    except WebPushException as e:
-        print(f"    Chrome 推播失敗: {e}")
+        print(f"    Chrome 推播成功")
+    except Exception as e:
+        print(f"    Chrome 推播失敗: {type(e).__name__}: {e}")
 
 
 def notify(topic: str, title: str, message: str, priority: str = "default"):
@@ -371,58 +373,78 @@ def main():
     print(f"  台股全方位掃描  {today}")
     print(f"{'═'*55}")
 
+    # 開頭先送測試推播，確認推播機制正常
+    send_web_push("🔄 掃描開始", f"台股掃描啟動 {today}")
+
     any_signal = False
 
     # ── 個股技術面 ──────────────────────────────────────────────
     print(f"\n【個股技術面】掃描 {len(watchlist)} 支")
     for ticker in watchlist:
-        print(f"  {ticker}", end=" ", flush=True)
-        signals = scan_stock(ticker, cfg)
-        if signals:
-            any_signal = True
-            text = "\n".join(f"• {s}" for s in signals)
-            print(f"→ {len(signals)} 個信號")
-            notify(topic, f"📈 {ticker} 出現 {len(signals)} 個信號！",
-                   f"日期：{today}\n\n{text}", priority="high")
-        else:
-            print("→ 無")
+        try:
+            print(f"  {ticker}", end=" ", flush=True)
+            signals = scan_stock(ticker, cfg)
+            if signals:
+                any_signal = True
+                text = "\n".join(f"• {s}" for s in signals)
+                print(f"→ {len(signals)} 個信號")
+                notify(topic, f"📈 {ticker} 出現 {len(signals)} 個信號！",
+                       f"日期：{today}\n\n{text}", priority="high")
+            else:
+                print("→ 無")
+        except Exception as e:
+            print(f"→ 錯誤：{e}")
 
     # ── 重大公告提醒 ──────────────────────────────────────────────
     if enabled.get("announcements"):
-        print(f"\n【重大公告】查詢未來 {t['announce_days_ahead']} 天")
-        announces = scan_announcements(watchlist, t["announce_days_ahead"])
-        for ticker, msg in announces:
-            any_signal = True
-            notify(topic, f"📅 {ticker} 重要日期提醒", f"{msg}", priority="high")
+        try:
+            print(f"\n【重大公告】查詢未來 {t['announce_days_ahead']} 天")
+            for ticker, msg in scan_announcements(watchlist, t["announce_days_ahead"]):
+                any_signal = True
+                notify(topic, f"📅 {ticker} 重要日期提醒", msg, priority="high")
+        except Exception as e:
+            print(f"  重大公告模組錯誤：{e}")
 
     # ── 停損 / 停利 ────────────────────────────────────────────────
     if enabled.get("portfolio_alerts"):
-        print(f"\n【持倉監控】{len(portfolio['holdings'])} 筆持倉")
-        for ticker, label, msg in scan_portfolio_alerts(portfolio):
-            any_signal = True
-            priority = "urgent" if "停損" in label else "high"
-            notify(topic, f"{label}  {ticker}", msg, priority=priority)
+        try:
+            print(f"\n【持倉監控】{len(portfolio['holdings'])} 筆持倉")
+            for ticker, label, msg in scan_portfolio_alerts(portfolio):
+                any_signal = True
+                priority = "urgent" if "停損" in label else "high"
+                notify(topic, f"{label}  {ticker}", msg, priority=priority)
+        except Exception as e:
+            print(f"  持倉監控模組錯誤：{e}")
 
     # ── 籌碼面（外資 + 投信）────────────────────────────────────────
     if enabled.get("institutional"):
-        print(f"\n【籌碼面】外資 + 投信")
-        for ticker, msg in scan_institutional(watchlist, t):
-            any_signal = True
-            notify(topic, f"🏦 {ticker} 法人大買！", f"日期：{today}\n\n{msg}", priority="high")
+        try:
+            print(f"\n【籌碼面】外資 + 投信")
+            for ticker, msg in scan_institutional(watchlist, t):
+                any_signal = True
+                notify(topic, f"🏦 {ticker} 法人大買！", f"日期：{today}\n\n{msg}", priority="high")
+        except Exception as e:
+            print(f"  籌碼面模組錯誤：{e}")
 
     # ── ETF 折價套利 ───────────────────────────────────────────────
     if enabled.get("etf_arbitrage"):
-        print(f"\n【ETF 折價】{len(cfg.get('etf_watchlist', []))} 支 ETF")
-        for ticker, msg in scan_etf_arbitrage(cfg):
-            any_signal = True
-            notify(topic, f"💰 {ticker} ETF 折價機會！", f"日期：{today}\n\n{msg}", priority="high")
+        try:
+            print(f"\n【ETF 折價】{len(cfg.get('etf_watchlist', []))} 支 ETF")
+            for ticker, msg in scan_etf_arbitrage(cfg):
+                any_signal = True
+                notify(topic, f"💰 {ticker} ETF 折價機會！", f"日期：{today}\n\n{msg}", priority="high")
+        except Exception as e:
+            print(f"  ETF 套利模組錯誤：{e}")
 
     # ── ADR 套利 ──────────────────────────────────────────────────
     if enabled.get("adr_arbitrage"):
-        print(f"\n【ADR 套利】{len(cfg.get('adr_pairs', []))} 組")
-        for ticker, msg in scan_adr_arbitrage(cfg):
-            any_signal = True
-            notify(topic, f"🌏 {ticker} 美股套利機會！", f"日期：{today}\n\n{msg}", priority="high")
+        try:
+            print(f"\n【ADR 套利】{len(cfg.get('adr_pairs', []))} 組")
+            for ticker, msg in scan_adr_arbitrage(cfg):
+                any_signal = True
+                notify(topic, f"🌏 {ticker} 美股套利機會！", f"日期：{today}\n\n{msg}", priority="high")
+        except Exception as e:
+            print(f"  ADR 套利模組錯誤：{e}")
 
     # ── 今日無信號 ────────────────────────────────────────────────
     if not any_signal:
