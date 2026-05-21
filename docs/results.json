@@ -1,7 +1,8 @@
 {
-  "scan_time": "2026/05/21 06:26",
-  "stocks_scanned": 15,
+  "scan_time": "2026/05/21 06:34",
+  "stocks_scanned": 19,
   "etfs_scanned": 4,
+  "all_stocks": [],
   "technical_signals": [],
   "announcements": [],
   "portfolio": [],
