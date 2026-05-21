@@ -1,0 +1,11 @@
+{
+  "scan_time": "尚未執行掃描",
+  "stocks_scanned": 0,
+  "etfs_scanned": 0,
+  "technical_signals": [],
+  "announcements": [],
+  "portfolio": [],
+  "institutional": [],
+  "etf_arbitrage": [],
+  "adr_arbitrage": []
+}
