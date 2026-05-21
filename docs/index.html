@@ -6,348 +6,262 @@
   <title>📈 台股信號儀表板</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:       #0f1117;
-      --surface:  #1a1d27;
-      --border:   #2a2d3e;
-      --text:     #e2e8f0;
-      --muted:    #8892a4;
-      --green:    #22c55e;
-      --red:      #ef4444;
-      --yellow:   #f59e0b;
-      --blue:     #3b82f6;
-      --purple:   #a855f7;
-      --cyan:     #06b6d4;
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
+      --text: #e2e8f0; --muted: #8892a4;
+      --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+      --blue: #3b82f6; --purple: #a855f7; --cyan: #06b6d4;
     }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; min-height: 100vh; padding: 20px; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      min-height: 100vh;
-      padding: 20px;
-    }
-
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 28px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    header h1 { font-size: 1.6rem; font-weight: 700; }
+    header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+    header h1 { font-size: 1.5rem; font-weight: 700; }
     header h1 span { color: var(--green); }
+    .meta { color: var(--muted); font-size: 0.82rem; line-height: 1.8; text-align: right; }
+    .btn { background: var(--blue); color: white; border: none; padding: 8px 18px; border-radius: 8px; font-size: 0.88rem; cursor: pointer; }
+    .btn:hover { opacity: .85; }
 
-    .meta { color: var(--muted); font-size: 0.85rem; line-height: 1.7; text-align: right; }
+    /* 統計 */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 24px; }
+    .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+    .stat .n { font-size: 1.8rem; font-weight: 700; }
+    .stat .l { color: var(--muted); font-size: 0.75rem; margin-top: 4px; }
 
-    .refresh-btn {
-      background: var(--blue);
-      color: white;
-      border: none;
-      padding: 8px 18px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: opacity .2s;
-    }
-    .refresh-btn:hover { opacity: .85; }
+    /* 區塊標題 */
+    .sec { margin-bottom: 24px; }
+    .sec-title { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; font-weight: 600; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 10px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; }
 
-    /* 統計列 */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-      margin-bottom: 28px;
-    }
-    .stat-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      text-align: center;
-    }
-    .stat-card .num { font-size: 2rem; font-weight: 700; }
-    .stat-card .lbl { color: var(--muted); font-size: 0.78rem; margin-top: 4px; }
+    /* 股票大表格 */
+    .stock-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    .stock-table thead th { background: var(--surface); color: var(--muted); font-weight: 500; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .stock-table thead th:nth-child(n+3) { text-align: right; }
+    .stock-table tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+    .stock-table tbody tr:hover { background: var(--surface); }
+    .stock-table td { padding: 10px 12px; vertical-align: middle; }
+    .stock-table td:nth-child(n+3) { text-align: right; }
 
-    /* 區塊 */
-    .section { margin-bottom: 28px; }
-    .section-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: .05em;
-    }
-    .section-title .dot {
-      width: 8px; height: 8px; border-radius: 50%;
-    }
+    .ticker-cell { display: flex; align-items: center; gap: 8px; }
+    .tag { font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; background: rgba(6,182,212,.15); color: var(--cyan); }
+    .tag.stock { background: rgba(59,130,246,.15); color: var(--blue); }
 
-    /* 卡片 */
-    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+    .price { font-weight: 600; }
+    .up   { color: var(--green); }
+    .down { color: var(--red); }
+    .flat { color: var(--muted); }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px 18px;
-      border-left: 4px solid var(--border);
-    }
+    .signal-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pill { font-size: 0.7rem; padding: 2px 7px; border-radius: 10px; background: rgba(34,197,94,.12); color: var(--green); white-space: nowrap; }
+    .no-signal { color: var(--muted); font-size: 0.8rem; }
+
+    /* 小卡片區（公告、持倉等）*/
+    .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 10px; padding: 14px 16px; }
     .card.green  { border-left-color: var(--green); }
     .card.red    { border-left-color: var(--red); }
     .card.yellow { border-left-color: var(--yellow); }
-    .card.blue   { border-left-color: var(--blue); }
     .card.purple { border-left-color: var(--purple); }
     .card.cyan   { border-left-color: var(--cyan); }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 10px;
-    }
-    .ticker {
-      font-weight: 700;
-      font-size: 1.05rem;
-    }
-    .badge {
-      font-size: 0.72rem;
-      padding: 3px 8px;
-      border-radius: 20px;
-      font-weight: 600;
-    }
+    .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .card-ticker { font-weight: 700; font-size: 1rem; }
+    .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
     .badge.green  { background: rgba(34,197,94,.15);  color: var(--green); }
     .badge.red    { background: rgba(239,68,68,.15);  color: var(--red); }
     .badge.yellow { background: rgba(245,158,11,.15); color: var(--yellow); }
-    .badge.blue   { background: rgba(59,130,246,.15); color: var(--blue); }
     .badge.purple { background: rgba(168,85,247,.15); color: var(--purple); }
     .badge.cyan   { background: rgba(6,182,212,.15);  color: var(--cyan); }
-
-    .signal-list { list-style: none; }
-    .signal-list li {
-      padding: 4px 0;
-      font-size: 0.88rem;
-      color: var(--muted);
-      border-bottom: 1px solid var(--border);
-    }
-    .signal-list li:last-child { border-bottom: none; }
-    .signal-list li::before { content: "• "; color: var(--green); }
-
-    .portfolio-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-      font-size: 0.85rem;
-    }
-    .portfolio-grid .lbl { color: var(--muted); }
-    .portfolio-grid .val { text-align: right; font-weight: 600; }
-    .pct-pos { color: var(--green); }
-    .pct-neg { color: var(--red); }
-
-    .msg { font-size: 0.88rem; color: var(--muted); line-height: 1.6; }
-
-    .empty {
-      background: var(--surface);
-      border: 1px dashed var(--border);
-      border-radius: 12px;
-      padding: 20px;
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.88rem;
-    }
-
-    /* Loading */
-    .loading {
-      text-align: center;
-      padding: 60px;
-      color: var(--muted);
-      font-size: 1.1rem;
-    }
-
-    footer {
-      text-align: center;
-      color: var(--muted);
-      font-size: 0.78rem;
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-    }
+    .kv { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 0.83rem; margin-top: 6px; }
+    .kv .k { color: var(--muted); }
+    .kv .v { text-align: right; font-weight: 600; }
+    .msg-text { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+    .empty { background: var(--surface); border: 1px dashed var(--border); border-radius: 10px; padding: 16px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+    .loading { text-align: center; padding: 60px; color: var(--muted); font-size: 1.1rem; }
+    footer { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); }
   </style>
 </head>
 <body>
-
-<div id="app">
-  <div class="loading">⏳ 載入中...</div>
-</div>
+<div id="app"><div class="loading">⏳ 載入中...</div></div>
 
 <script>
-const COLORS = { green: "green", red: "red", yellow: "yellow", blue: "blue", purple: "purple", cyan: "cyan" };
+function pctClass(v) { return v > 0 ? "up" : v < 0 ? "down" : "flat"; }
+function pctStr(v)   { return (v > 0 ? "+" : "") + v.toFixed(2) + "%"; }
+function emptyState(msg) { return `<div class="empty">✅ ${msg}</div>`; }
 
-function badge(text, color) {
-  return `<span class="badge ${color}">${text}</span>`;
+function secTitle(icon, label, color) {
+  return `<div class="sec-title"><span class="dot" style="background:var(--${color})"></span>${icon} ${label}</div>`;
 }
 
-function card(color, header, body) {
-  return `<div class="card ${color}">
-    <div class="card-header">${header}</div>
-    ${body}
-  </div>`;
-}
+// ── 股票總覽大表 ──────────────────────────────────────────
+function renderStockTable(stocks) {
+  if (!stocks || !stocks.length) return emptyState("尚無股票資料");
 
-function emptyState(msg) {
-  return `<div class="empty">✅ ${msg}</div>`;
-}
-
-function renderSection(title, dotColor, content) {
-  return `<div class="section">
-    <div class="section-title">
-      <span class="dot" style="background:var(--${dotColor})"></span>${title}
-    </div>
-    ${content}
-  </div>`;
-}
-
-function renderTechnical(data) {
-  if (!data.length) return emptyState("今日無技術面信號");
-  const cards = data.map(item => {
-    const signals = item.signals.map(s => `<li>${s}</li>`).join("");
-    return card("green",
-      `<span class="ticker">${item.ticker}</span>${badge("買入信號", "green")}`,
-      `<ul class="signal-list">${signals}</ul>`
-    );
+  const rows = stocks.map(s => {
+    const cls  = pctClass(s.change_pct);
+    const tag  = s.is_etf
+      ? `<span class="tag">ETF</span>`
+      : `<span class="tag stock">個股</span>`;
+    const pills = s.signals && s.signals.length
+      ? `<div class="signal-pills">${s.signals.map(sig => `<span class="pill">${sig}</span>`).join("")}</div>`
+      : `<span class="no-signal">—</span>`;
+    return `<tr>
+      <td><div class="ticker-cell">${tag}<strong>${s.ticker.replace(".TW","")}</strong></div></td>
+      <td class="price">${s.price.toFixed(2)}</td>
+      <td class="${cls}">${s.change >= 0 ? "+" : ""}${s.change.toFixed(2)}</td>
+      <td class="${cls}">${pctStr(s.change_pct)}</td>
+      <td>${pills}</td>
+    </tr>`;
   }).join("");
-  return `<div class="cards">${cards}</div>`;
+
+  return `<div style="overflow-x:auto">
+    <table class="stock-table">
+      <thead><tr>
+        <th>股票</th><th>現價</th><th>漲跌</th><th>漲跌幅</th><th>今日信號</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
 }
 
-function renderAnnouncements(data) {
-  if (!data.length) return emptyState("近期無重大公告");
-  const cards = data.map(item =>
-    card("yellow",
-      `<span class="ticker">${item.ticker}</span>${badge(item.type, "yellow")}`,
-      `<p class="msg">${item.message}</p>`
-    )
-  ).join("");
-  return `<div class="cards">${cards}</div>`;
-}
-
+// ── 持倉監控 ──────────────────────────────────────────────
 function renderPortfolio(data) {
-  if (!data.length) return emptyState("尚未設定持倉");
+  if (!data || !data.length) return emptyState("尚未設定持倉（編輯 portfolio.json）");
   const cards = data.map(item => {
-    const pctClass = item.pct >= 0 ? "pct-pos" : "pct-neg";
-    const pctText  = `${item.pct >= 0 ? "+" : ""}${item.pct}%`;
-    let color = "blue", badgeText = "持有中", badgeColor = "blue";
-    if (item.status === "停損") { color = "red";    badgeText = "⚠ 停損警告"; badgeColor = "red"; }
-    if (item.status === "停利") { color = "green";  badgeText = "🎯 停利提醒"; badgeColor = "green"; }
-    return card(color,
-      `<span class="ticker">${item.name}（${item.ticker}）</span>${badge(badgeText, badgeColor)}`,
-      `<div class="portfolio-grid">
-        <span class="lbl">買入價</span><span class="val">${item.buy_price}</span>
-        <span class="lbl">現價</span><span class="val">${item.now_price}</span>
-        <span class="lbl">損益</span><span class="val ${pctClass}">${pctText}</span>
-      </div>`
-    );
+    const cls = item.pct >= 0 ? "up" : "down";
+    let color = "green", bText = "持有中", bColor = "green";
+    if (item.status === "停損") { color = "red";   bText = "⚠ 停損警告"; bColor = "red"; }
+    if (item.status === "停利") { color = "green"; bText = "🎯 停利提醒"; bColor = "green"; }
+    return `<div class="card ${color}">
+      <div class="card-head">
+        <span class="card-ticker">${item.name}（${item.ticker.replace(".TW","")}）</span>
+        <span class="badge ${bColor}">${bText}</span>
+      </div>
+      <div class="kv">
+        <span class="k">買入價</span><span class="v">${item.buy_price}</span>
+        <span class="k">現價</span><span class="v">${item.now_price}</span>
+        <span class="k">損益</span><span class="v ${cls}">${item.pct >= 0 ? "+" : ""}${item.pct}%</span>
+      </div>
+    </div>`;
   }).join("");
   return `<div class="cards">${cards}</div>`;
 }
 
+// ── 重大公告 ──────────────────────────────────────────────
+function renderAnnouncements(data) {
+  if (!data || !data.length) return emptyState("近期無除息 / 法說會");
+  const cards = data.map(item =>
+    `<div class="card yellow">
+      <div class="card-head">
+        <span class="card-ticker">${item.ticker.replace(".TW","")}</span>
+        <span class="badge yellow">${item.type}</span>
+      </div>
+      <p class="msg-text">${item.message}</p>
+    </div>`
+  ).join("");
+  return `<div class="cards">${cards}</div>`;
+}
+
+// ── 法人籌碼 ──────────────────────────────────────────────
 function renderInstitutional(data) {
-  if (!data.length) return emptyState("今日無法人大買超");
+  if (!data || !data.length) return emptyState("今日無法人大買超");
   const cards = data.map(item =>
-    card("purple",
-      `<span class="ticker">${item.ticker}</span>${badge("法人買超", "purple")}`,
-      `<p class="msg">${item.message}</p>`
-    )
+    `<div class="card purple">
+      <div class="card-head">
+        <span class="card-ticker">${item.ticker.replace(".TW","")}</span>
+        <span class="badge purple">法人買超</span>
+      </div>
+      <p class="msg-text">${item.message}</p>
+    </div>`
   ).join("");
   return `<div class="cards">${cards}</div>`;
 }
 
-function renderETFArbitrage(data) {
-  if (!data.length) return emptyState("今日 ETF 無折價機會");
+// ── ETF 折價 ──────────────────────────────────────────────
+function renderETF(data) {
+  if (!data || !data.length) return emptyState("今日無 ETF 折價機會");
   const cards = data.map(item =>
-    card("cyan",
-      `<span class="ticker">${item.ticker}</span>${badge(`折價 ${item.discount_pct}%`, "cyan")}`,
-      `<div class="portfolio-grid">
-        <span class="lbl">市價</span><span class="val">${item.price}</span>
-        <span class="lbl">淨值(NAV)</span><span class="val">${item.nav}</span>
-        <span class="lbl">折價幅度</span><span class="val pct-neg">${item.discount_pct}%</span>
-      </div>`
-    )
+    `<div class="card cyan">
+      <div class="card-head">
+        <span class="card-ticker">${item.ticker.replace(".TW","")}</span>
+        <span class="badge cyan">折價 ${item.discount_pct}%</span>
+      </div>
+      <div class="kv">
+        <span class="k">市價</span><span class="v">${item.price}</span>
+        <span class="k">淨值</span><span class="v">${item.nav}</span>
+      </div>
+    </div>`
   ).join("");
   return `<div class="cards">${cards}</div>`;
 }
 
+// ── ADR 套利 ──────────────────────────────────────────────
 function renderADR(data) {
-  if (!data.length) return emptyState("今日無 ADR 套利機會");
+  if (!data || !data.length) return emptyState("今日無 ADR 套利機會");
   const cards = data.map(item => {
     const dir = item.gap_pct > 0 ? "美股溢價" : "美股折價";
-    const color = item.gap_pct > 0 ? "green" : "red";
-    return card(color,
-      `<span class="ticker">${item.name}</span>${badge(dir, color)}`,
-      `<div class="portfolio-grid">
-        <span class="lbl">台股現價</span><span class="val">${item.tw_price}</span>
-        <span class="lbl">美股換算</span><span class="val">${item.us_equiv}</span>
-        <span class="lbl">差距</span><span class="val ${item.gap_pct > 0 ? "pct-pos" : "pct-neg"}">${item.gap_pct > 0 ? "+" : ""}${item.gap_pct}%</span>
-        <span class="lbl">匯率</span><span class="val">${item.usd_twd}</span>
-      </div>`
-    );
+    const c   = item.gap_pct > 0 ? "green" : "red";
+    return `<div class="card ${c}">
+      <div class="card-head">
+        <span class="card-ticker">${item.name}</span>
+        <span class="badge ${c}">${dir} ${Math.abs(item.gap_pct)}%</span>
+      </div>
+      <div class="kv">
+        <span class="k">台股</span><span class="v">${item.tw_price}</span>
+        <span class="k">美股換算</span><span class="v">${item.us_equiv}</span>
+        <span class="k">匯率</span><span class="v">${item.usd_twd}</span>
+      </div>
+    </div>`;
   }).join("");
   return `<div class="cards">${cards}</div>`;
 }
 
-function countAlerts(d) {
-  return d.technical_signals.length +
-    d.announcements.length +
-    d.portfolio.filter(p => p.status !== "正常").length +
-    d.institutional.length +
-    d.etf_arbitrage.length +
-    d.adr_arbitrage.length;
-}
-
+// ── 主渲染 ──────────────────────────────────────────────
 function render(d) {
-  const alerts = countAlerts(d);
+  const signalCount = (d.all_stocks || []).filter(s => s.signals && s.signals.length).length;
+  const alertCount  = (d.portfolio  || []).filter(p => p.status !== "正常").length;
+
   document.getElementById("app").innerHTML = `
     <header>
       <h1>📈 台股 <span>信號儀表板</span></h1>
-      <div class="meta">
-        最後掃描：${d.scan_time}<br>
-        掃描股票：${d.stocks_scanned} 支個股 + ${d.etfs_scanned} 支 ETF
-      </div>
-      <button class="refresh-btn" onclick="load()">🔄 重新整理</button>
+      <div class="meta">最後掃描：${d.scan_time}</div>
+      <button class="btn" onclick="load()">🔄 重新整理</button>
     </header>
 
     <div class="stats">
-      <div class="stat-card">
-        <div class="num" style="color:var(--blue)">${d.stocks_scanned}</div>
-        <div class="lbl">掃描個股</div>
-      </div>
-      <div class="stat-card">
-        <div class="num" style="color:var(--cyan)">${d.etfs_scanned}</div>
-        <div class="lbl">掃描 ETF</div>
-      </div>
-      <div class="stat-card">
-        <div class="num" style="color:${alerts > 0 ? "var(--green)" : "var(--muted)"}">${alerts}</div>
-        <div class="lbl">今日信號數</div>
-      </div>
-      <div class="stat-card">
-        <div class="num" style="color:var(--purple)">${d.portfolio.length}</div>
-        <div class="lbl">持倉追蹤</div>
-      </div>
+      <div class="stat"><div class="n" style="color:var(--blue)">${d.stocks_scanned}</div><div class="l">追蹤股票</div></div>
+      <div class="stat"><div class="n" style="color:${signalCount > 0 ? "var(--green)" : "var(--muted)"}">${signalCount}</div><div class="l">有信號</div></div>
+      <div class="stat"><div class="n" style="color:${alertCount > 0 ? "var(--red)" : "var(--muted)"}">${alertCount}</div><div class="l">持倉警示</div></div>
+      <div class="stat"><div class="n" style="color:var(--purple)">${(d.portfolio || []).length}</div><div class="l">持倉追蹤</div></div>
     </div>
 
-    ${renderSection("📊 技術面買入信號", "green",   renderTechnical(d.technical_signals))}
-    ${renderSection("⚠️ 持倉停損 / 停利", "red",     renderPortfolio(d.portfolio))}
-    ${renderSection("📅 重大公告 / 除息", "yellow",  renderAnnouncements(d.announcements))}
-    ${renderSection("🏦 法人籌碼買超",    "purple",  renderInstitutional(d.institutional))}
-    ${renderSection("💰 ETF 折價套利",    "cyan",    renderETFArbitrage(d.etf_arbitrage))}
-    ${renderSection("🌏 ADR 美股套利",    "blue",    renderADR(d.adr_arbitrage))}
+    <div class="sec">
+      ${secTitle("📊", "全部股票總覽", "blue")}
+      ${renderStockTable(d.all_stocks)}
+    </div>
+
+    <div class="sec">
+      ${secTitle("⚠️", "持倉停損 / 停利", "red")}
+      ${renderPortfolio(d.portfolio)}
+    </div>
+
+    <div class="sec">
+      ${secTitle("📅", "重大公告 / 除息", "yellow")}
+      ${renderAnnouncements(d.announcements)}
+    </div>
+
+    <div class="sec">
+      ${secTitle("🏦", "法人籌碼買超", "purple")}
+      ${renderInstitutional(d.institutional)}
+    </div>
+
+    <div class="sec">
+      ${secTitle("💰", "ETF 折價套利", "cyan")}
+      ${renderETF(d.etf_arbitrage)}
+    </div>
+
+    <div class="sec">
+      ${secTitle("🌏", "ADR 美股套利", "green")}
+      ${renderADR(d.adr_arbitrage)}
+    </div>
 
     <footer>台股信號儀表板 · 每個交易日 15:30 自動更新</footer>
   `;
@@ -356,12 +270,11 @@ function render(d) {
 async function load() {
   try {
     const r = await fetch("results.json?t=" + Date.now());
-    if (!r.ok) throw new Error("尚無掃描資料");
+    if (!r.ok) throw new Error("尚無掃描資料，請先執行一次 GitHub Actions");
     render(await r.json());
   } catch (e) {
     document.getElementById("app").innerHTML =
-      `<div class="loading">⚠️ ${e.message}<br><br>
-       請先到 GitHub Actions 執行一次掃描，結果才會出現在這裡。</div>`;
+      `<div class="loading">⚠️ ${e.message}</div>`;
   }
 }
 

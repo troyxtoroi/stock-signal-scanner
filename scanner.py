@@ -310,10 +310,14 @@ def main():
     print(f"  台股全方位掃描  {today_str}")
     print(f"{'═'*55}")
 
+    etf_watchlist = cfg.get("etf_watchlist", [])
+    all_tickers   = watchlist + etf_watchlist
+
     results = {
         "scan_time":         today_str,
-        "stocks_scanned":    len(watchlist),
-        "etfs_scanned":      len(cfg.get("etf_watchlist", [])),
+        "stocks_scanned":    len(all_tickers),
+        "etfs_scanned":      len(etf_watchlist),
+        "all_stocks":        [],
         "technical_signals": [],
         "announcements":     [],
         "portfolio":         [],
@@ -322,19 +326,46 @@ def main():
         "adr_arbitrage":     [],
     }
 
-    # ── 個股技術面 ──
-    print(f"\n【個股技術面】")
-    for ticker in watchlist:
+    # ── 所有股票概覽（個股 + ETF 合一）──
+    print(f"\n【全部股票掃描】共 {len(all_tickers)} 支")
+    for ticker in all_tickers:
         try:
             print(f"  {ticker}", end=" ", flush=True)
-            signals = scan_stock(ticker, cfg)
+            df = fetch_ohlcv(ticker)
+            if df.empty or len(df) < 2:
+                print("→ 無資料")
+                continue
+
+            price     = round(float(df["Close"].iloc[-1]), 2)
+            prev      = round(float(df["Close"].iloc[-2]), 2)
+            change    = round(price - prev, 2)
+            change_pct= round((price - prev) / prev * 100, 2) if prev else 0
+            is_etf    = ticker in etf_watchlist
+
+            signals = []
+            if not is_etf:
+                signals = scan_stock(ticker, cfg)
+            else:
+                signals = scan_stock(ticker, cfg)
+
+            stock_info = {
+                "ticker":     ticker,
+                "is_etf":     is_etf,
+                "price":      price,
+                "change":     change,
+                "change_pct": change_pct,
+                "signals":    signals,
+            }
+            results["all_stocks"].append(stock_info)
+
             if signals:
                 results["technical_signals"].append({"ticker": ticker, "signals": signals})
-                print(f"→ {len(signals)} 個信號")
+                print(f"→ 現價 {price}（{change_pct:+.2f}%），{len(signals)} 個信號")
                 notify(topic, f"📈 {ticker} 出現買入信號！",
-                       f"日期：{today_str}\n\n" + "\n".join(f"• {s}" for s in signals), priority="high")
+                       f"日期：{today_str}\n現價：{price}（{change_pct:+.2f}%）\n\n" +
+                       "\n".join(f"• {s}" for s in signals), priority="high")
             else:
-                print("→ 無")
+                print(f"→ 現價 {price}（{change_pct:+.2f}%）")
         except Exception as e:
             print(f"→ 錯誤：{e}")
 
