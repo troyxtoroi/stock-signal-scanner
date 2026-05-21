@@ -1,0 +1,26 @@
+name: 每日股票信號掃描
+
+on:
+  schedule:
+    # 台灣收盤後 15:30，UTC 時間 07:30
+    - cron: "30 7 * * 1-5"
+  workflow_dispatch:  # 允許手動觸發測試
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 取得程式碼
+        uses: actions/checkout@v4
+
+      - name: 安裝 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安裝套件
+        run: pip install -r requirements.txt
+
+      - name: 執行掃描器
+        run: python scanner.py

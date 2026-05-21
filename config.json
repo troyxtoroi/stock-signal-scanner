@@ -1,0 +1,23 @@
+{
+  "ntfy_topic": "stock-signals-troychao",
+  "watchlist": [
+    "2330.TW",
+    "2317.TW",
+    "2454.TW",
+    "2412.TW",
+    "2881.TW",
+    "0050.TW",
+    "0056.TW"
+  ],
+  "signals": {
+    "golden_cross": true,
+    "volume_spike": true,
+    "rsi_oversold": true,
+    "high_dividend": true
+  },
+  "thresholds": {
+    "rsi_oversold_level": 30,
+    "volume_spike_ratio": 2.0,
+    "min_dividend_yield": 5.0
+  }
+}
