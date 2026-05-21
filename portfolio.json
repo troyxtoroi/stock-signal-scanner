@@ -1,0 +1,8 @@
+{
+  "holdings": [
+    {"ticker": "2330.TW", "name": "台積電",   "buy_price": 850.0},
+    {"ticker": "0056.TW", "name": "元大高股息", "buy_price": 35.0}
+  ],
+  "stop_loss_pct": -8.0,
+  "take_profit_pct": 20.0
+}
