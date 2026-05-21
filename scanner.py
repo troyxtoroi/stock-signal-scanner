@@ -3,6 +3,7 @@ import os
 import requests
 import yfinance as yf
 import pandas as pd
+import google.generativeai as genai
 from ta.momentum import RSIIndicator
 from ta.trend import SMAIndicator, MACD
 from ta.volatility import BollingerBands
@@ -20,6 +21,44 @@ def load_portfolio():
             return json.load(f)
     except FileNotFoundError:
         return {"holdings": [], "stop_loss_pct": -8.0, "take_profit_pct": 20.0}
+
+
+# ═══════════════════════════════════════════════════════════════
+# AI 分析
+# ═══════════════════════════════════════════════════════════════
+
+def analyze_with_ai(ticker: str, price: float, change_pct: float, signals: list) -> dict:
+    api_key = os.environ.get("GEMINI_API_KEY", "")
+    if not api_key:
+        return {"verdict": "未設定", "reason": "請新增 GEMINI_API_KEY 到 GitHub Secrets"}
+
+    signal_text = "\n".join(f"- {s}" for s in signals)
+    prompt = f"""你是台股技術分析師，根據以下資訊給出投資建議。
+
+股票：{ticker}
+現價：{price}，今日漲跌：{change_pct:+.2f}%
+偵測到的信號：
+{signal_text}
+
+請只回覆以下格式，不要其他文字：
+建議：[建議買入 / 觀望 / 避開]
+理由：[一句話，不超過25字]"""
+
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.0-flash-lite")
+        response = model.generate_content(prompt)
+        text = response.text.strip()
+        verdict, reason = "觀望", ""
+        for line in text.splitlines():
+            if line.startswith("建議："):
+                verdict = line.replace("建議：", "").strip()
+            elif line.startswith("理由："):
+                reason = line.replace("理由：", "").strip()
+        return {"verdict": verdict, "reason": reason}
+    except Exception as e:
+        print(f"    AI 分析失敗：{e}")
+        return {"verdict": "分析失敗", "reason": str(e)[:40]}
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -348,6 +387,17 @@ def main():
             else:
                 signals = scan_stock(ticker, cfg)
 
+            ai = {"verdict": "—", "reason": ""}
+            if signals:
+                print(f"→ 現價 {price}（{change_pct:+.2f}%），{len(signals)} 個信號，AI 分析中...", flush=True)
+                ai = analyze_with_ai(ticker, price, change_pct, signals)
+                results["technical_signals"].append({"ticker": ticker, "signals": signals, "ai": ai})
+                notify(topic, f"📈 {ticker} {ai['verdict']}",
+                       f"日期：{today_str}\nAI：{ai['verdict']} — {ai['reason']}\n\n" +
+                       "\n".join(f"• {s}" for s in signals), priority="high")
+            else:
+                print(f"→ 現價 {price}（{change_pct:+.2f}%）")
+
             stock_info = {
                 "ticker":     ticker,
                 "is_etf":     is_etf,
@@ -355,17 +405,9 @@ def main():
                 "change":     change,
                 "change_pct": change_pct,
                 "signals":    signals,
+                "ai":         ai,
             }
             results["all_stocks"].append(stock_info)
-
-            if signals:
-                results["technical_signals"].append({"ticker": ticker, "signals": signals})
-                print(f"→ 現價 {price}（{change_pct:+.2f}%），{len(signals)} 個信號")
-                notify(topic, f"📈 {ticker} 出現買入信號！",
-                       f"日期：{today_str}\n現價：{price}（{change_pct:+.2f}%）\n\n" +
-                       "\n".join(f"• {s}" for s in signals), priority="high")
-            else:
-                print(f"→ 現價 {price}（{change_pct:+.2f}%）")
         except Exception as e:
             print(f"→ 錯誤：{e}")
 

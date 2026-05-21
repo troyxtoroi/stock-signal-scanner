@@ -35,11 +35,19 @@
     /* 股票大表格 */
     .stock-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
     .stock-table thead th { background: var(--surface); color: var(--muted); font-weight: 500; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
-    .stock-table thead th:nth-child(n+3) { text-align: right; }
+    .stock-table thead th:nth-child(3),
+    .stock-table thead th:nth-child(4) { text-align: right; }
     .stock-table tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
     .stock-table tbody tr:hover { background: var(--surface); }
     .stock-table td { padding: 10px 12px; vertical-align: middle; }
-    .stock-table td:nth-child(n+3) { text-align: right; }
+    .stock-table td:nth-child(3),
+    .stock-table td:nth-child(4) { text-align: right; }
+
+    .ai-buy     { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:600; background:rgba(34,197,94,.15);  color:var(--green); }
+    .ai-watch   { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:600; background:rgba(245,158,11,.15); color:var(--yellow); }
+    .ai-avoid   { display:inline-block; padding:3px 10px; border-radius:20px; font-size:.75rem; font-weight:600; background:rgba(239,68,68,.15);  color:var(--red); }
+    .ai-none    { color:var(--muted); font-size:.8rem; }
+    .ai-reason  { color:var(--muted); font-size:.75rem; margin-top:3px; }
 
     .ticker-cell { display: flex; align-items: center; gap: 8px; }
     .tag { font-size: 0.68rem; padding: 2px 6px; border-radius: 4px; font-weight: 600; background: rgba(6,182,212,.15); color: var(--cyan); }
@@ -103,19 +111,32 @@ function renderStockTable(stocks) {
     const pills = s.signals && s.signals.length
       ? `<div class="signal-pills">${s.signals.map(sig => `<span class="pill">${sig}</span>`).join("")}</div>`
       : `<span class="no-signal">—</span>`;
+
+    let aiCell = `<span class="ai-none">—</span>`;
+    if (s.ai && s.ai.verdict && s.ai.verdict !== "—") {
+      const v = s.ai.verdict;
+      const cls2 = v.includes("買入") ? "ai-buy" : v.includes("避開") ? "ai-avoid" : "ai-watch";
+      const emoji = v.includes("買入") ? "✅" : v.includes("避開") ? "❌" : "⏸";
+      aiCell = `<div>
+        <span class="${cls2}">${emoji} ${v}</span>
+        ${s.ai.reason ? `<div class="ai-reason">${s.ai.reason}</div>` : ""}
+      </div>`;
+    }
+
     return `<tr>
       <td><div class="ticker-cell">${tag}<strong>${s.ticker.replace(".TW","")}</strong></div></td>
       <td class="price">${s.price.toFixed(2)}</td>
       <td class="${cls}">${s.change >= 0 ? "+" : ""}${s.change.toFixed(2)}</td>
       <td class="${cls}">${pctStr(s.change_pct)}</td>
       <td>${pills}</td>
+      <td>${aiCell}</td>
     </tr>`;
   }).join("");
 
   return `<div style="overflow-x:auto">
     <table class="stock-table">
       <thead><tr>
-        <th>股票</th><th>現價</th><th>漲跌</th><th>漲跌幅</th><th>今日信號</th>
+        <th>股票</th><th>現價</th><th>漲跌</th><th>漲跌幅</th><th>今日信號</th><th>AI 建議</th>
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>

@@ -25,6 +25,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: 執行掃描器
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python scanner.py
 
       - name: 提交掃描結果到 GitHub Pages
